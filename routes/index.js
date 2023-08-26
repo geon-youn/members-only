@@ -64,6 +64,18 @@ router.post('/sign-up', [
         });
       }
 
+      const usernameExists = await User.findOne({ username: username });
+      if (usernameExists) {
+        res.render('sign-up', {
+          user: user,
+          password: req.body.password,
+          cpassword: req.body.cpassword,
+          errors: errors
+            .array()
+            .concat([{ msg: 'A user with that username already exists' }]),
+        });
+      }
+
       bcrypt.hash(req.body.password, 16, async (err, hashedPassword) => {
         if (err) {
           next(err);
