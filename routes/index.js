@@ -52,6 +52,7 @@ router.post('/sign-up', [
         lname: req.body.lname,
         username: req.body.username,
         password: 'temporary',
+        member: false,
       });
 
       if (!errors.isEmpty()) {
@@ -68,6 +69,7 @@ router.post('/sign-up', [
           next(err);
         }
         user.password = hashedPassword;
+        user.member = false;
         await user.save();
       });
 
