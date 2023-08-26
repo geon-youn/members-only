@@ -1,0 +1,10 @@
+extends layout 
+
+block content 
+  h1 Join the Club 
+  form(action="", method="post") 
+    .form-section
+      label(for="password") Secret Password
+      input(type="text" name='password' id='password')
+    .form-section 
+      button(type="submit") Submit
