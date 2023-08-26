@@ -4,6 +4,8 @@ const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const User = require('../models/user');
 
+require('dotenv').config();
+
 /* GET home page. */
 router.get('/', function (req, res, next) {
   res.render('index', { title: 'Express' });
@@ -85,6 +87,37 @@ router.post('/sign-up', [
         await user.save();
       });
 
+      res.redirect('/');
+    } catch (err) {
+      next(err);
+    }
+  },
+]);
+
+router.get('/join-the-club', (req, res) => {
+  res.render('join-the-club', { user: req.locals ? req.locals.currentUser : null });
+});
+
+router.post('/join-the-club', [
+  body('password')
+    .custom((password, { req }) => {
+      return password === process.env.password;
+    })
+    .withMessage('Incorrect password'),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+
+      if (!errors) {
+        res.render('join-the-club', {
+          user: req.locals.currentUser,
+          errors: errors.array(),
+        });
+      }
+
+      const user = req.locals.currentUser;
+      user.member = true;
+      await User.findByIdAndUpdate(user._id, user, {});
       res.redirect('/');
     } catch (err) {
       next(err);
