@@ -1,0 +1,22 @@
+extends layout 
+
+block content 
+  h1 Log in 
+  if user 
+    p You are already logged in as 
+      b #{user.username}
+  else
+    form(action="" method="post") 
+      .form-section   
+        label(for="username") Username 
+        input#username(type="text" name='username' value=(username || '') required)
+      .form-section 
+        label(for="password") Password 
+        input#password(type="password" name="password" value=(password || '') required) 
+      .form-section   
+        button(type="submit") Log in
+    
+    if errors 
+      ul 
+        each error in errors 
+          li #{error.msg}
