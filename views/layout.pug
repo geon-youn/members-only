@@ -1,7 +1,17 @@
 doctype html
 html
   head
-    title= title
+    title='Members Only'
     link(rel='stylesheet', href='/stylesheets/style.css')
   body
+    nav 
+      a(href="/") HOME
+      if user
+        if !user.member
+          a(href="/join-the-club") JOIN
+        a(href="/new-message") NEW MESSAGE
+        a(href="/log-out") LOG OUT 
+      else 
+        a(href="/sign-up") SIGN UP
+        a(href="/log-in") LOG IN 
     block content
