@@ -3,13 +3,40 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const User = require('../models/user');
+const Message = require('../models/message');
 const passport = require('passport');
 
 require('dotenv').config();
 
 /* GET home page. */
-router.get('/', function (req, res, next) {
-  res.render('index', { title: 'Express', user: res.locals.currentUser });
+router.get('/', async (req, res, next) => {
+  try {
+    let allMessages;
+    if (res.locals.currentUser && res.locals.currentUser.member) {
+      allMessages = await Message.find({})
+        .populate('author', 'fname lname')
+        .exec();
+      console.log('populated');
+    } else {
+      allMessages = await Message.find({}, 'title text').exec();
+    }
+    res.render('index', {
+      title: 'Express',
+      user: res.locals.currentUser,
+      messages: allMessages,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/delete-msg', async (req, res, next) => {
+  try {
+    await Message.findByIdAndRemove(req.body.messageid);
+    res.redirect('/');
+  } catch (err) {
+    next(err);
+  }
 });
 
 // Sign up
@@ -208,5 +235,34 @@ router.get('/new-message', (req, res, next) => {
     res.render('new-message', { user: res.locals.currentUser });
   }
 });
+
+router.post('/new-message', [
+  body('title').trim().isLength({ min: 0 }).withMessage('Title is required'),
+  body('text').trim().isLength({ min: 0 }).withMessage('Message is required'),
+  async (req, res, next) => {
+    try {
+      const errors = validationResult(req);
+
+      if (!errors.isEmpty()) {
+        res.render('new-message', {
+          title: req.body.title,
+          text: req.body.text,
+          errors: errors.array(),
+        });
+      } else {
+        const message = new Message({
+          title: req.body.title,
+          text: req.body.text,
+          timestamp: new Date(),
+          author: res.locals.currentUser._id,
+        });
+        await message.save();
+        res.redirect('/');
+      }
+    } catch (err) {
+      next(err);
+    }
+  },
+]);
 
 module.exports = router;
