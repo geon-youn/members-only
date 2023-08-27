@@ -3,16 +3,18 @@ const router = express.Router();
 const { body, validationResult } = require('express-validator');
 const bcrypt = require('bcryptjs');
 const User = require('../models/user');
+const passport = require('passport');
 
 require('dotenv').config();
 
 /* GET home page. */
 router.get('/', function (req, res, next) {
-  res.render('index', { title: 'Express' });
+  res.render('index', { title: 'Express', user: res.locals.currentUser });
 });
 
+// Sign up
 router.get('/sign-up', (req, res) => {
-  res.render('sign-up');
+  res.render('sign-up', { user: res.locals.currentUser });
 });
 
 router.post('/sign-up', [
@@ -22,20 +24,20 @@ router.post('/sign-up', [
     .isLength({ min: 0 })
     .withMessage('First name is required')
     .isAlpha()
-    .withMessage('First name should be alphanumeric'),
+    .withMessage('First name should be alphabetic'),
   body('lname')
     .trim()
     .escape()
     .isLength({ min: 0 })
     .withMessage('Last name is required')
     .isAlpha()
-    .withMessage('Last name should be alphanumeric'),
+    .withMessage('Last name should be alphabetic'),
   body('username')
     .trim()
     .escape()
     .isLength({ min: 0 })
     .withMessage('Username is required')
-    .isAlpha()
+    .isAlphanumeric()
     .withMessage('Username should be alphanumeric'),
   body('password').isLength({ min: 0 }).withMessage('Password is required'),
   body('cpassword')
@@ -49,80 +51,141 @@ router.post('/sign-up', [
     try {
       const errors = validationResult(req);
 
-      const user = new User({
-        fname: req.body.fname,
-        lname: req.body.lname,
-        username: req.body.username,
-        password: 'temporary',
-        member: false,
-      });
-
       if (!errors.isEmpty()) {
         res.render('sign-up', {
-          user: user,
+          fname: req.body.fname,
+          lname: req.body.lname,
+          username: req.body.username,
           password: req.body.password,
           cpassword: req.body.cpassword,
           errors: errors.array(),
         });
-      }
-
-      const usernameExists = await User.findOne({ username: username });
-      if (usernameExists) {
-        res.render('sign-up', {
-          user: user,
-          password: req.body.password,
-          cpassword: req.body.cpassword,
-          errors: errors
-            .array()
-            .concat([{ msg: 'A user with that username already exists' }]),
+      } else {
+        const usernameExists = await User.findOne({
+          username: req.body.username,
         });
-      }
+        if (usernameExists) {
+          res.render('sign-up', {
+            fname: req.body.fname,
+            lname: req.body.lname,
+            username: req.body.username,
+            password: req.body.password,
+            cpassword: req.body.cpassword,
+            errors: errors
+              .array()
+              .concat([{ msg: 'A user with that username already exists' }]),
+          });
+        } else {
+          bcrypt.hash(req.body.password, 16, async (err, hashedPassword) => {
+            if (err) {
+              next(err);
+            }
+            const user = new User({
+              fname: req.body.fname,
+              lname: req.body.lname,
+              username: req.body.username,
+              password: hashedPassword,
+              member: false,
+              admin: false,
+            });
+            await user.save();
+          });
 
-      bcrypt.hash(req.body.password, 16, async (err, hashedPassword) => {
-        if (err) {
-          next(err);
+          res.redirect('/');
         }
-        user.password = hashedPassword;
-        user.member = false;
-        await user.save();
-      });
-
-      res.redirect('/');
+      }
     } catch (err) {
       next(err);
     }
   },
 ]);
 
-router.get('/join-the-club', (req, res) => {
-  res.render('join-the-club', { user: req.locals ? req.locals.currentUser : null });
+// Log in
+router.get('/log-in', (req, res) => {
+  res.render('log-in', { user: res.locals ? res.locals.currentUser : null });
 });
 
-router.post('/join-the-club', [
-  body('password')
-    .custom((password, { req }) => {
-      return password === process.env.password;
-    })
-    .withMessage('Incorrect password'),
+router.post('/log-in', [
+  body('username')
+    .trim()
+    .escape()
+    .isLength({ min: 0 })
+    .withMessage('Username is required')
+    .isAlphanumeric()
+    .withMessage('Usernames are alphanumeric'),
+  body('password').isLength({ min: 0 }).withMessage('Passwords are required'),
   async (req, res, next) => {
     try {
       const errors = validationResult(req);
 
-      if (!errors) {
-        res.render('join-the-club', {
-          user: req.locals.currentUser,
+      if (!errors.isEmpty()) {
+        res.render('log-in', {
+          username: req.body.username,
+          password: req.body.password,
           errors: errors.array(),
         });
       }
 
-      const user = req.locals.currentUser;
-      user.member = true;
-      await User.findByIdAndUpdate(user._id, user, {});
-      res.redirect('/');
+      await passport.authenticate('local', {}, (err, user, options) => {
+        if (err) {
+          next(err);
+        }
+        if (!user) {
+          res.render('log-in', {
+            username: req.body.username,
+            password: req.body.password,
+            errors: errors.array().concat([{ msg: options.message }]),
+          });
+        }
+        console.log('successful login with user ' + user.fullname);
+
+        req.logIn(user, (err) => {
+          if (err) {
+            return next(err);
+          }
+          return res.redirect('/');
+        });
+      })(req, res, next);
     } catch (err) {
       next(err);
     }
   },
 ]);
+
+// Log out
+router.get('/log-out', (req, res, next) => {
+  req.logOut((err) => {
+    if (err) {
+      return next(err);
+    } else {
+      res.redirect('/');
+    }
+  });
+});
+
+// Join membership
+router.get('/join-the-club', (req, res) => {
+  res.render('join-the-club', {
+    user: res.locals ? res.locals.currentUser : null,
+  });
+});
+
+router.post('/join-the-club', async (req, res, next) => {
+  try {
+    if (req.body.password !== process.env.password) {
+      res.render('join-the-club', {
+        user: res.locals.currentUser,
+        errors: [{ msg: 'Incorrect password' }],
+      });
+    } else {
+      const user = res.locals.currentUser;
+      user.member = true;
+      await User.findByIdAndUpdate(user._id, user, {});
+      res.redirect('/');
+    }
+  } catch (err) {
+    next(err);
+  }
+});
 
 module.exports = router;
