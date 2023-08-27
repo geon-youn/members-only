@@ -3,15 +3,18 @@ extends layout
 block content 
   h1 Join the Club 
   if user
-    form(action="" method="post") 
-      .form-section
-        label(for="password") Secret Password
-        input(type="text" name='password' id='password')
-      .form-section 
-        button(type="submit") Submit
-    if errors 
-      ul 
-        each error in errors 
-          li #{error.msg}
+    if user.member 
+      p You are already a member! 
+    else
+      form(action="" method="post") 
+        .form-section
+          label(for="password") Secret Password
+          input(type="password" name='password' id='password')
+        .form-section 
+          button(type="submit") Submit
+      if errors 
+        ul 
+          each error in errors 
+            li #{error.msg}
   else 
     p You must be logged in to join the club!
