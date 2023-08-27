@@ -3,3 +3,19 @@ extends layout
 block content
   h1= title
   p Welcome to #{title}
+
+  if messages 
+    ul 
+      each message in messages 
+        li.message 
+          .title 
+            b #{message.title}
+          if user && user.member
+            .author by #{message.author.fullname}
+          .text #{message.text}
+          .timestamp #{message.timestamp}
+          if user && user.admin   
+            form(action="/delete-msg", method="post") 
+              input(type="hidden", name="messageid" value=message._id)
+              button(type="submit") Delete Message
+
