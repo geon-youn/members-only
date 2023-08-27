@@ -14,7 +14,11 @@ router.get('/', function (req, res, next) {
 
 // Sign up
 router.get('/sign-up', (req, res) => {
-  res.render('sign-up', { user: res.locals.currentUser });
+  if (res.locals.currentUser) {
+    res.redirect('/');
+  } else {
+    res.render('sign-up', { user: res.locals.currentUser });
+  }
 });
 
 router.post('/sign-up', [
@@ -102,7 +106,11 @@ router.post('/sign-up', [
 
 // Log in
 router.get('/log-in', (req, res) => {
-  res.render('log-in', { user: res.locals ? res.locals.currentUser : null });
+  if (res.locals.currentUser) {
+    res.redirect('/');
+  } else {
+    res.render('log-in', { user: res.locals.currentUser });
+  }
 });
 
 router.post('/log-in', [
@@ -165,9 +173,13 @@ router.get('/log-out', (req, res, next) => {
 
 // Join membership
 router.get('/join-the-club', (req, res) => {
-  res.render('join-the-club', {
-    user: res.locals ? res.locals.currentUser : null,
-  });
+  if (!res.locals.currentUser) {
+    res.redirect('/');
+  } else {
+    res.render('join-the-club', {
+      user: res.locals.currentUser,
+    });
+  }
 });
 
 router.post('/join-the-club', async (req, res, next) => {
@@ -185,6 +197,15 @@ router.post('/join-the-club', async (req, res, next) => {
     }
   } catch (err) {
     next(err);
+  }
+});
+
+// New Message
+router.get('/new-message', (req, res, next) => {
+  if (!res.locals.currentUser) {
+    res.redirect('/');
+  } else {
+    res.render('new-message', { user: res.locals.currentUser });
   }
 });
 
